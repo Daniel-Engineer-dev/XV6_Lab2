@@ -122,28 +122,30 @@ sys_uptime(void)
   return xticks;
 }
 // Định nghĩa sys_pgaccess
-int sys_pgaccess(void)
+uint64
+sys_pgaccess(void)
 {
-  // lab pgtbl: your code here.
-  uint64 startaddr;
-  int npage;
-  uint64 useraddr;
-  argaddr(0, &startaddr);
-  argint(1, &npage);
-  argaddr(2, &useraddr);
+  uint64 va;
+  int pages;
+  uint64 abitsaddr;
+  argaddr(0, &va);
+  argint(1, &pages);
+  argaddr(2, &abitsaddr);
 
-  uint64 bitmask = 0;
-  uint64 complement = ~PTE_A;
+  if(pages > 64) return -1;
+
+  unsigned int mask = 0;
   struct proc *p = myproc();
-  for (int i = 0; i < npage; ++i)
-  {
-    pte_t *pte = walk(p->pagetable, startaddr + i * PGSIZE, 0);
-    if (*pte & PTE_A)
-    {
-      bitmask |= (1 << i);
-      *pte &= complement;
+
+  for(int i = 0; i < pages; i++){
+    uint64 current_va = va + i * PGSIZE;
+    pte_t *pte = walk(p->pagetable, current_va, 0);
+    
+    if(pte != 0 && (*pte & PTE_V) && (*pte & PTE_A)){
+      mask |= (1 << i);      
+      *pte &= ~PTE_A; 
     }
   }
-  copyout(p->pagetable, useraddr, (char *)&bitmask, sizeof(bitmask));
-  return 0;
+
+  return copyout(p->pagetable, abitsaddr, (char *)&mask, sizeof(mask));
 }
